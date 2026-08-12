@@ -218,8 +218,7 @@ def visualizar_horas_aluno(aluno: str, professor: str | None = None):
 
     st.caption(
         "Link para edição no Google Sheets: "
-        "https://docs.google.com/spreadsheets/d/"
-        "133kYKvfehQQeJTQ86Z2IM3SmgIBNmd0ZQfhvPFgqFGY/"
+        "https://docs.google.com/spreadsheets/d/1qSUrm2deYcni2DdA1hHjsiNvyf0KCM7Hitmb1AcCyoM/"
     )
 
 
