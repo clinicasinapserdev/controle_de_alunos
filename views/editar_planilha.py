@@ -28,8 +28,8 @@ if autenticado:
     )
 
     atualizar_botao = st.button("⚠️Atualizar base⚠️")
-    st.caption("Link para edição no Google Sheets: https://docs.google.com/spreadsheets/d/133kYKvfehQQeJTQ86Z2IM3SmgIBNmd0ZQfhvPFgqFGY/")
-    
+    st.caption("Link para edição no Google Sheets: https://docs.google.com/spreadsheets/d/1qSUrm2deYcni2DdA1hHjsiNvyf0KCM7Hitmb1AcCyoM/")
+    st.caption("Para editar a planilha diretamente, é necessário estar logado no e-mail: clinicasinapserdev@gmail.com")
     if atualizar_botao:
         set_sheet_data("base_de_horas",base_horas)
         st.success("Base atualizada com sucesso!")

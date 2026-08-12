@@ -34,7 +34,7 @@ if autenticado:
             ),
             "professor": st.column_config.SelectboxColumn(
                 "Professor", 
-                options=["Patricia","Ciro"],
+                options=["Juliana"],
                 required=True),    
         },
     )
