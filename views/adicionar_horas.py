@@ -83,10 +83,7 @@ def visualizar_horas_aluno(aluno: str,professor: str = None):
         )
 
         st.dataframe(relatorio_detalhado_df,hide_index=True)
-        if professor == "Ciro":
-            logo_path = "assets/cartão_ciro.png"
-        else:
-            logo_path = None
+        logo_path = None
 
         img_bytes = df_to_image_bytes(relatorio_detalhado_df,title=titulo_da_tabela,logo_path=logo_path)
 
@@ -100,20 +97,12 @@ def visualizar_horas_aluno(aluno: str,professor: str = None):
 
     st.caption("Link para edição no Google Sheets: https://docs.google.com/spreadsheets/d/133kYKvfehQQeJTQ86Z2IM3SmgIBNmd0ZQfhvPFgqFGY/")
 
-professor_parametro = st.query_params.get("professor",None)
-
-if professor_parametro == "ciro":
-    index = 1
-else:
-    index = 0
-
-
 if autenticado:
     st.title("Adicionar Horas")
 
     col1,col2 = st.columns(2)
 
-    professor = col1.selectbox("Selecione o professor:", ["Patricia","Ciro"],index=index)
+    professor = col1.selectbox("Selecione o professor:", ["Juliana"])
 
     alunos_filtrados = alunos_df.loc[alunos_df["professor"] == professor]
     alunos = alunos_filtrados["aluno"].tolist()
