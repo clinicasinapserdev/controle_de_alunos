@@ -188,7 +188,6 @@ def visualizar_horas_aluno(aluno: str, professor: str | None = None):
             f"a {data_fim.strftime('%d/%m/%Y')}\n"
             f"Total de horas: {total_horas:g} horas\n"
             f"Valor total: R$ {valor_total:.2f}\n"
-            "Chave Pix: 368.509.398-31 (Patricia Miyuki)"
         )
 
         st.dataframe(
