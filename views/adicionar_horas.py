@@ -6,6 +6,7 @@ from datetime import date
 from auxiliar.google_sheets import (
     get_sheet_data,
     append_sheet_data,
+    get_professores_list,
 )
 from auxiliar.download_as_image import df_to_image_bytes
 from auxiliar.athentication import caixa_de_autenticacao
@@ -33,6 +34,9 @@ autenticado = st.session_state["autenticado"]
 
 if "base_alunos" not in st.session_state:
     st.session_state["base_alunos"] = get_sheet_data("base_alunos")
+
+if "base_professores" not in st.session_state:
+    st.session_state["base_professores"] = get_professores_list()
 
 
 # ============================================================
@@ -231,7 +235,7 @@ if autenticado:
     # Permite forçar a atualização caso a planilha tenha sido
     # alterada diretamente no Google Sheets.
     if st.button(
-        "Atualizar lista de alunos",
+        "Atualizar listas de alunos e professores",
         type="secondary",
     ):
         # Se get_sheet_data usa @st.cache_data, limpa o resultado
@@ -243,7 +247,9 @@ if autenticado:
             "base_alunos"
         )
 
-        st.success("Lista de alunos atualizada!")
+        st.session_state["base_professores"] = get_professores_list()
+
+        st.success("Listas de alunos e professores atualizadas!")
         st.rerun()
 
     alunos_df = st.session_state["base_alunos"]
@@ -273,22 +279,14 @@ if autenticado:
 
     col1, col2 = st.columns(2)
 
-    professores = (
-        alunos_df["professor"]
-        .dropna()
-        .astype(str)
-        .str.strip()
-    )
+    professores = st.session_state["base_professores"]
 
-    professores = sorted(
-        professor
-        for professor in professores.unique().tolist()
-        if professor
-    )
-
-    # Mantém Juliana como opção caso ainda não exista na base.
-    if "Juliana" not in professores:
-        professores.insert(0, "Juliana")
+    if not professores:
+        st.warning(
+            "A base de professores está vazia. Cadastre pelo menos "
+            "um professor na página 'Adicionar Professores'."
+        )
+        st.stop()
 
     professor = col1.selectbox(
         "Selecione o professor:",

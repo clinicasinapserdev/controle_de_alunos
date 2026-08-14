@@ -63,3 +63,14 @@ def set_sheet_data(sheet_name: str, df: pd.DataFrame):
 def append_sheet_data(sheet_name: str, data: list):
     worksheet = sh.worksheet(sheet_name)
     worksheet.append_rows(data, value_input_option='USER_ENTERED')
+
+
+def get_professores_list() -> list:
+    df = get_sheet_data("base_professores")
+
+    if df.empty or "professor" not in df.columns:
+        return []
+
+    professores = df["professor"].dropna().astype(str).str.strip()
+
+    return sorted(professor for professor in professores.unique().tolist() if professor)

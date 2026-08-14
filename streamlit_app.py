@@ -16,6 +16,12 @@ aluno_page = st.Page(
     icon=":material/child_care:",
 )
 
+professor_page = st.Page(
+    "views/adicionar_professor.py",
+    title="Adicionar Professores",
+    icon=":material/person:",
+)
+
 total_page = st.Page(
     "views/total_de_dinheiro.py",
     title="Total de Dinheiro",
@@ -35,7 +41,7 @@ editar_horas_page = st.Page(
 pg = st.navigation(
     {
         "Controle de horas": [horas_page,total_page],
-        "Configurações": [aluno_page,editar_horas_page],
+        "Configurações": [aluno_page,professor_page,editar_horas_page],
     }
 )
 

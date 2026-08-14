@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 
-from auxiliar.google_sheets import get_sheet_data, set_sheet_data, get_professores_list
+from auxiliar.google_sheets import get_sheet_data, set_sheet_data
 from auxiliar.athentication import caixa_de_autenticacao
 
 
@@ -26,11 +26,8 @@ autenticado = st.session_state["autenticado"]
 # CARREGAMENTO DA BASE
 # ============================================================
 
-if "base_alunos" not in st.session_state:
-    st.session_state["base_alunos"] = get_sheet_data("base_alunos")
-
 if "base_professores" not in st.session_state:
-    st.session_state["base_professores"] = get_professores_list()
+    st.session_state["base_professores"] = get_sheet_data("base_professores")
 
 
 # ============================================================
@@ -38,46 +35,40 @@ if "base_professores" not in st.session_state:
 # ============================================================
 
 if autenticado:
-    st.title("Adicionar Alunos")
+    st.title("Adicionar Professores")
 
-    alunos_df = st.session_state["base_alunos"]
+    professores_df = st.session_state["base_professores"]
 
-    base_alunos_editada = st.data_editor(
-        alunos_df,
+    base_professores_editada = st.data_editor(
+        professores_df,
         num_rows="dynamic",
         column_config={
-            "aluno": st.column_config.TextColumn(
-                "Nome do Aluno"
-            ),
-            "hora_aula": st.column_config.NumberColumn(
-                "Hora Aula",
-                help="Valor da hora-aula",
-                format="R$ %.2f",
-            ),
-            "professor": st.column_config.SelectboxColumn(
-                "Professor",
-                options=st.session_state["base_professores"],
-                required=True,
+            "professor": st.column_config.TextColumn(
+                "Nome do Professor"
             ),
         },
-        key="editor_base_alunos",
+        key="editor_base_professores",
     )
 
     atualizar_botao = st.button(
-        "Atualizar base de alunos",
+        "Atualizar base de professores",
         type="primary",
     )
 
     if atualizar_botao:
         set_sheet_data(
-            "base_alunos",
-            base_alunos_editada,
+            "base_professores",
+            base_professores_editada,
         )
 
         # Atualiza a cópia armazenada na sessão.
-        st.session_state["base_alunos"] = base_alunos_editada.copy()
+        st.session_state["base_professores"] = base_professores_editada.copy()
 
-        st.success("Base de alunos atualizada com sucesso!")
+        # Força recarregar a lista de professores nas demais páginas.
+        if hasattr(get_sheet_data, "clear"):
+            get_sheet_data.clear()
+
+        st.success("Base de professores atualizada com sucesso!")
         st.balloons()
 
 else:
