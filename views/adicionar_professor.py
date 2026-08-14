@@ -39,6 +39,15 @@ if autenticado:
 
     professores_df = st.session_state["base_professores"]
 
+    # Garante que a base tenha sempre a coluna "professor", mesmo
+    # quando a planilha está vazia (sem cabeçalho) ou com outro nome.
+    if professores_df.empty and professores_df.columns.empty:
+        professores_df = pd.DataFrame(columns=["professor"])
+    elif "professor" not in professores_df.columns:
+        professores_df = professores_df.rename(
+            columns={professores_df.columns[0]: "professor"}
+        )
+
     base_professores_editada = st.data_editor(
         professores_df,
         num_rows="dynamic",
