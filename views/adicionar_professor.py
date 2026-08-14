@@ -26,8 +26,8 @@ autenticado = st.session_state["autenticado"]
 # CARREGAMENTO DA BASE
 # ============================================================
 
-if "base_professores" not in st.session_state:
-    st.session_state["base_professores"] = get_sheet_data("base_professores")
+if "base_professores_df" not in st.session_state:
+    st.session_state["base_professores_df"] = get_sheet_data("base_professores")
 
 
 # ============================================================
@@ -37,7 +37,7 @@ if "base_professores" not in st.session_state:
 if autenticado:
     st.title("Adicionar Professores")
 
-    professores_df = st.session_state["base_professores"]
+    professores_df = st.session_state["base_professores_df"]
 
     # Garante que a base tenha sempre a coluna "professor", mesmo
     # quando a planilha está vazia (sem cabeçalho) ou com outro nome.
@@ -71,11 +71,14 @@ if autenticado:
         )
 
         # Atualiza a cópia armazenada na sessão.
-        st.session_state["base_professores"] = base_professores_editada.copy()
+        st.session_state["base_professores_df"] = base_professores_editada.copy()
 
         # Força recarregar a lista de professores nas demais páginas.
         if hasattr(get_sheet_data, "clear"):
             get_sheet_data.clear()
+
+        if "base_professores" in st.session_state:
+            del st.session_state["base_professores"]
 
         st.success("Base de professores atualizada com sucesso!")
         st.balloons()
