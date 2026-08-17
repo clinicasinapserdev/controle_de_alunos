@@ -9,23 +9,6 @@ from auxiliar.google_sheets import (
     get_professores_list,
 )
 from auxiliar.download_as_image import df_to_image_bytes
-from auxiliar.athentication import caixa_de_autenticacao
-
-
-# ============================================================
-# AUTENTICAÇÃO
-# ============================================================
-
-password = st.secrets["PASSWORD"]
-password_parametro = st.query_params.get("password", None)
-
-if "autenticado" not in st.session_state:
-    st.session_state["autenticado"] = False
-
-if password == password_parametro:
-    st.session_state["autenticado"] = True
-
-autenticado = st.session_state["autenticado"]
 
 
 # ============================================================
@@ -229,162 +212,157 @@ def visualizar_horas_aluno(aluno: str, professor: str | None = None):
 # PÁGINA PRINCIPAL
 # ============================================================
 
-if autenticado:
-    st.title("Adicionar Horas")
+st.title("Adicionar Horas")
 
-    # Permite forçar a atualização caso a planilha tenha sido
-    # alterada diretamente no Google Sheets.
-    if st.button(
-        "Atualizar listas de alunos e professores",
-        type="secondary",
-    ):
-        # Se get_sheet_data usa @st.cache_data, limpa o resultado
-        # armazenado antes de consultar novamente.
+# Permite forçar a atualização caso a planilha tenha sido
+# alterada diretamente no Google Sheets.
+if st.button(
+    "Atualizar listas de alunos e professores",
+    type="secondary",
+):
+    # Se get_sheet_data usa @st.cache_data, limpa o resultado
+    # armazenado antes de consultar novamente.
+    if hasattr(get_sheet_data, "clear"):
+        get_sheet_data.clear()
+
+    st.session_state["base_alunos"] = get_sheet_data(
+        "base_alunos"
+    )
+
+    st.session_state["base_professores"] = get_professores_list()
+
+    st.success("Listas de alunos e professores atualizadas!")
+    st.rerun()
+
+alunos_df = st.session_state["base_alunos"]
+
+if alunos_df.empty:
+    st.warning(
+        "A base de alunos está vazia. Cadastre pelo menos um aluno."
+    )
+    st.stop()
+
+colunas_obrigatorias = {
+    "aluno",
+    "professor",
+    "hora_aula",
+}
+
+colunas_ausentes = colunas_obrigatorias.difference(
+    alunos_df.columns
+)
+
+if colunas_ausentes:
+    st.error(
+        "A base de alunos não possui as seguintes colunas: "
+        + ", ".join(sorted(colunas_ausentes))
+    )
+    st.stop()
+
+col1, col2 = st.columns(2)
+
+professores = st.session_state["base_professores"]
+
+if not professores:
+    st.warning(
+        "A base de professores está vazia. Cadastre pelo menos "
+        "um professor na página 'Adicionar Professores'."
+    )
+    st.stop()
+
+professor = col1.selectbox(
+    "Selecione o professor:",
+    professores,
+)
+
+alunos_filtrados = alunos_df.loc[
+    alunos_df["professor"].astype(str).str.strip() == professor
+].copy()
+
+alunos = (
+    alunos_filtrados["aluno"]
+    .dropna()
+    .astype(str)
+    .str.strip()
+)
+
+alunos = sorted(
+    aluno
+    for aluno in alunos.unique().tolist()
+    if aluno
+)
+
+if not alunos:
+    st.warning(
+        f"Não há alunos cadastrados para o professor {professor}."
+    )
+    st.stop()
+
+aluno = col2.selectbox(
+    "Selecione o aluno:",
+    alunos,
+)
+
+data_aula = col1.date_input(
+    "Data da atividade:",
+    value=date.today(),
+)
+
+quantidade_horas = col2.number_input(
+    "Quantidade de horas:",
+    min_value=0.0,
+    step=0.5,
+)
+
+observacoes = st.text_input(
+    "Observações (opcional):"
+)
+
+botao_adicionar_horas = st.button(
+    "Adicionar horas",
+    type="primary",
+)
+
+visualizar_aluno = st.button(
+    "Visualizar horas do aluno",
+    type="secondary",
+)
+
+if botao_adicionar_horas:
+    if quantidade_horas <= 0:
+        st.error(
+            "A quantidade de horas deve ser maior do que zero."
+        )
+
+    else:
+        nova_linha = {
+            "data_da_aula": data_aula.strftime("%Y-%m-%d"),
+            "quantidade_de_horas": quantidade_horas,
+            "aluno": aluno,
+            "professor": professor,
+            "data_atualizacao": date.today().strftime("%Y-%m-%d"),
+            "observacoes": observacoes,
+        }
+
+        append_sheet_data(
+            "base_de_horas",
+            [list(nova_linha.values())],
+        )
+
+        # Evita que a janela de visualização continue mostrando
+        # uma versão em cache anterior ao novo registro.
         if hasattr(get_sheet_data, "clear"):
             get_sheet_data.clear()
 
-        st.session_state["base_alunos"] = get_sheet_data(
-            "base_alunos"
+        st.success(
+            f"Foram adicionadas {quantidade_horas:g} horas "
+            f"para o aluno {aluno}, do professor {professor}."
         )
 
-        st.session_state["base_professores"] = get_professores_list()
+        st.balloons()
 
-        st.success("Listas de alunos e professores atualizadas!")
-        st.rerun()
-
-    alunos_df = st.session_state["base_alunos"]
-
-    if alunos_df.empty:
-        st.warning(
-            "A base de alunos está vazia. Cadastre pelo menos um aluno."
-        )
-        st.stop()
-
-    colunas_obrigatorias = {
-        "aluno",
-        "professor",
-        "hora_aula",
-    }
-
-    colunas_ausentes = colunas_obrigatorias.difference(
-        alunos_df.columns
+if visualizar_aluno:
+    visualizar_horas_aluno(
+        aluno,
+        professor,
     )
-
-    if colunas_ausentes:
-        st.error(
-            "A base de alunos não possui as seguintes colunas: "
-            + ", ".join(sorted(colunas_ausentes))
-        )
-        st.stop()
-
-    col1, col2 = st.columns(2)
-
-    professores = st.session_state["base_professores"]
-
-    if not professores:
-        st.warning(
-            "A base de professores está vazia. Cadastre pelo menos "
-            "um professor na página 'Adicionar Professores'."
-        )
-        st.stop()
-
-    professor = col1.selectbox(
-        "Selecione o professor:",
-        professores,
-    )
-
-    alunos_filtrados = alunos_df.loc[
-        alunos_df["professor"].astype(str).str.strip() == professor
-    ].copy()
-
-    alunos = (
-        alunos_filtrados["aluno"]
-        .dropna()
-        .astype(str)
-        .str.strip()
-    )
-
-    alunos = sorted(
-        aluno
-        for aluno in alunos.unique().tolist()
-        if aluno
-    )
-
-    if not alunos:
-        st.warning(
-            f"Não há alunos cadastrados para o professor {professor}."
-        )
-        st.stop()
-
-    aluno = col2.selectbox(
-        "Selecione o aluno:",
-        alunos,
-    )
-
-    data_aula = col1.date_input(
-        "Data da atividade:",
-        value=date.today(),
-    )
-
-    quantidade_horas = col2.number_input(
-        "Quantidade de horas:",
-        min_value=0.0,
-        step=0.5,
-    )
-
-    observacoes = st.text_input(
-        "Observações (opcional):"
-    )
-
-    botao_adicionar_horas = st.button(
-        "Adicionar horas",
-        type="primary",
-    )
-
-    visualizar_aluno = st.button(
-        "Visualizar horas do aluno",
-        type="secondary",
-    )
-
-    if botao_adicionar_horas:
-        if quantidade_horas <= 0:
-            st.error(
-                "A quantidade de horas deve ser maior do que zero."
-            )
-
-        else:
-            nova_linha = {
-                "data_da_aula": data_aula.strftime("%Y-%m-%d"),
-                "quantidade_de_horas": quantidade_horas,
-                "aluno": aluno,
-                "professor": professor,
-                "data_atualizacao": date.today().strftime("%Y-%m-%d"),
-                "observacoes": observacoes,
-            }
-
-            append_sheet_data(
-                "base_de_horas",
-                [list(nova_linha.values())],
-            )
-
-            # Evita que a janela de visualização continue mostrando
-            # uma versão em cache anterior ao novo registro.
-            if hasattr(get_sheet_data, "clear"):
-                get_sheet_data.clear()
-
-            st.success(
-                f"Foram adicionadas {quantidade_horas:g} horas "
-                f"para o aluno {aluno}, do professor {professor}."
-            )
-
-            st.balloons()
-
-    if visualizar_aluno:
-        visualizar_horas_aluno(
-            aluno,
-            professor,
-        )
-
-else:
-    st.error("Senha incorreta. Acesso negado.")
-    caixa_de_autenticacao()

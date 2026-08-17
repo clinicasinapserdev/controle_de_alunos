@@ -7,7 +7,6 @@ import pandas as pd
 
 from auxiliar.google_sheets import get_sheet_data
 from auxiliar.download_as_image import df_to_image_bytes
-from auxiliar.athentication import caixa_de_autenticacao
 
 
 def limpar_nome_arquivo(texto: str) -> str:
@@ -113,206 +112,190 @@ def gerar_zip_tabelas_alunos(
     return zip_buffer.getvalue()
 
 
-password = st.secrets["PASSWORD"]
-password_parametro = st.query_params.get("password", None)
+if "base_alunos" not in st.session_state:
+    st.session_state["base_alunos"] = get_sheet_data("base_alunos")
 
-if "autenticado" not in st.session_state:
-    st.session_state["autenticado"] = False
+if "base_de_horas" not in st.session_state:
+    st.session_state["base_de_horas"] = get_sheet_data("base_de_horas")
 
-if password == password_parametro:
-    st.session_state["autenticado"] = True
+alunos_df = st.session_state["base_alunos"].copy()
+horas_df = st.session_state["base_de_horas"].copy()
 
-autenticado = st.session_state["autenticado"]
+st.title("Visualizar total")
 
-if autenticado:
-    if "base_alunos" not in st.session_state:
-        st.session_state["base_alunos"] = get_sheet_data("base_alunos")
+seletor_periodo = st.date_input(
+    "Selecione o período:",
+    value=(date.today().replace(day=1), date.today()),
+)
 
-    if "base_de_horas" not in st.session_state:
-        st.session_state["base_de_horas"] = get_sheet_data("base_de_horas")
+data_inicio, data_fim = normalizar_periodo(seletor_periodo)
 
-    alunos_df = st.session_state["base_alunos"].copy()
-    horas_df = st.session_state["base_de_horas"].copy()
+horas_df["data_da_aula"] = pd.to_datetime(
+    horas_df["data_da_aula"],
+    errors="coerce",
+)
 
-    st.title("Visualizar total")
-
-    seletor_periodo = st.date_input(
-        "Selecione o período:",
-        value=(date.today().replace(day=1), date.today()),
-    )
-
-    data_inicio, data_fim = normalizar_periodo(seletor_periodo)
-
-    horas_df["data_da_aula"] = pd.to_datetime(
-        horas_df["data_da_aula"],
+if "data_atualizacao" in horas_df.columns:
+    horas_df["data_atualizacao"] = pd.to_datetime(
+        horas_df["data_atualizacao"],
         errors="coerce",
     )
 
-    if "data_atualizacao" in horas_df.columns:
-        horas_df["data_atualizacao"] = pd.to_datetime(
-            horas_df["data_atualizacao"],
-            errors="coerce",
-        )
+merged_df = horas_df.merge(
+    alunos_df,
+    on="aluno",
+    how="left",
+    suffixes=("", "_aluno"),
+)
 
-    merged_df = horas_df.merge(
-        alunos_df,
-        on="aluno",
-        how="left",
-        suffixes=("", "_aluno"),
+filtro_periodo = (
+    (merged_df["data_da_aula"].dt.date >= data_inicio)
+    & (merged_df["data_da_aula"].dt.date <= data_fim)
+)
+
+merged_df = merged_df.loc[filtro_periodo].copy()
+
+merged_df["quantidade_de_horas"] = pd.to_numeric(
+    merged_df["quantidade_de_horas"],
+    errors="coerce",
+).fillna(0)
+
+merged_df["hora_aula"] = pd.to_numeric(
+    merged_df["hora_aula"],
+    errors="coerce",
+).fillna(0)
+
+merged_df["valor_total"] = (
+    merged_df["quantidade_de_horas"] * merged_df["hora_aula"]
+)
+
+resumo_professor = (
+    merged_df.groupby("professor")[["quantidade_de_horas", "valor_total"]]
+    .sum()
+    .reset_index()
+)
+
+total_geral_horas = resumo_professor["quantidade_de_horas"].sum()
+total_geral_valor = resumo_professor["valor_total"].sum()
+
+resumo_professor.loc[len(resumo_professor)] = [
+    "Total Geral",
+    total_geral_horas,
+    total_geral_valor,
+]
+
+st.subheader("Resumo por Professor")
+
+st.dataframe(
+    resumo_professor,
+    hide_index=True,
+    column_config={
+        "professor": st.column_config.TextColumn("Professor"),
+        "quantidade_de_horas": st.column_config.NumberColumn(
+            "Quantidade de horas",
+            format="%.2f",
+        ),
+        "valor_total": st.column_config.NumberColumn(
+            "Valor total",
+            format="R$ %.2f",
+        ),
+    },
+)
+
+professores_disponiveis = sorted(
+    merged_df["professor"].dropna().unique()
+)
+
+if professores_disponiveis:
+    professor_selecionado_download = st.selectbox(
+        "Selecione o professor para baixar as tabelas dos alunos:",
+        professores_disponiveis,
+        key="professor_download_tabelas",
     )
 
-    filtro_periodo = (
-        (merged_df["data_da_aula"].dt.date >= data_inicio)
-        & (merged_df["data_da_aula"].dt.date <= data_fim)
+    df_professor_download = merged_df.loc[
+        merged_df["professor"] == professor_selecionado_download
+    ].copy()
+
+    zip_bytes = gerar_zip_tabelas_alunos(
+        df_professor=df_professor_download,
+        professor=professor_selecionado_download,
+        data_inicio=data_inicio,
+        data_fim=data_fim,
     )
 
-    merged_df = merged_df.loc[filtro_periodo].copy()
+    nome_professor = limpar_nome_arquivo(professor_selecionado_download)
 
-    merged_df["quantidade_de_horas"] = pd.to_numeric(
-        merged_df["quantidade_de_horas"],
-        errors="coerce",
-    ).fillna(0)
-
-    merged_df["hora_aula"] = pd.to_numeric(
-        merged_df["hora_aula"],
-        errors="coerce",
-    ).fillna(0)
-
-    merged_df["valor_total"] = (
-        merged_df["quantidade_de_horas"] * merged_df["hora_aula"]
+    st.download_button(
+        label="Baixar todas as tabelas",
+        data=zip_bytes,
+        file_name=(
+            f"tabelas_{nome_professor}_"
+            f"{data_inicio.strftime('%Y%m%d')}_{data_fim.strftime('%Y%m%d')}.zip"
+        ),
+        mime="application/zip",
     )
-
-    resumo_professor = (
-        merged_df.groupby("professor")[["quantidade_de_horas", "valor_total"]]
-        .sum()
-        .reset_index()
-    )
-
-    total_geral_horas = resumo_professor["quantidade_de_horas"].sum()
-    total_geral_valor = resumo_professor["valor_total"].sum()
-
-    resumo_professor.loc[len(resumo_professor)] = [
-        "Total Geral",
-        total_geral_horas,
-        total_geral_valor,
-    ]
-
-    st.subheader("Resumo por Professor")
-
-    st.dataframe(
-        resumo_professor,
-        hide_index=True,
-        column_config={
-            "professor": st.column_config.TextColumn("Professor"),
-            "quantidade_de_horas": st.column_config.NumberColumn(
-                "Quantidade de horas",
-                format="%.2f",
-            ),
-            "valor_total": st.column_config.NumberColumn(
-                "Valor total",
-                format="R$ %.2f",
-            ),
-        },
-    )
-
-    professores_disponiveis = sorted(
-        merged_df["professor"].dropna().unique()
-    )
-
-    if professores_disponiveis:
-        professor_selecionado_download = st.selectbox(
-            "Selecione o professor para baixar as tabelas dos alunos:",
-            professores_disponiveis,
-            key="professor_download_tabelas",
-        )
-
-        df_professor_download = merged_df.loc[
-            merged_df["professor"] == professor_selecionado_download
-        ].copy()
-
-        zip_bytes = gerar_zip_tabelas_alunos(
-            df_professor=df_professor_download,
-            professor=professor_selecionado_download,
-            data_inicio=data_inicio,
-            data_fim=data_fim,
-        )
-
-        nome_professor = limpar_nome_arquivo(professor_selecionado_download)
-
-        st.download_button(
-            label="Baixar todas as tabelas",
-            data=zip_bytes,
-            file_name=(
-                f"tabelas_{nome_professor}_"
-                f"{data_inicio.strftime('%Y%m%d')}_{data_fim.strftime('%Y%m%d')}.zip"
-            ),
-            mime="application/zip",
-        )
-    else:
-        st.info("Nenhum professor encontrado neste período.")
-
-    resumo_aluno = (
-        merged_df.groupby(["aluno", "professor"])[["quantidade_de_horas", "valor_total"]]
-        .sum()
-        .reset_index()
-    )
-
-    resumo_aluno.sort_values(by="professor", inplace=True)
-
-    st.subheader("Resumo por Aluno")
-
-    st.dataframe(
-        resumo_aluno,
-        hide_index=True,
-        column_config={
-            "aluno": st.column_config.TextColumn("Aluno"),
-            "professor": st.column_config.TextColumn("Professor"),
-            "quantidade_de_horas": st.column_config.NumberColumn(
-                "Quantidade de horas",
-                format="%.2f",
-            ),
-            "valor_total": st.column_config.NumberColumn(
-                "Valor total",
-                format="R$ %.2f",
-            ),
-        },
-    )
-
-    st.subheader("Detalhe do Aluno")
-
-    alunos_disponiveis = sorted(merged_df["aluno"].dropna().unique())
-
-    if alunos_disponiveis:
-        aluno_selecionado = st.selectbox(
-            "Selecione um aluno:",
-            alunos_disponiveis,
-        )
-
-        detalhe_aluno = merged_df.loc[
-            merged_df["aluno"] == aluno_selecionado
-        ].copy()
-
-        st.dataframe(
-            detalhe_aluno,
-            hide_index=True,
-            column_config={
-                "data_da_aula": st.column_config.DatetimeColumn(
-                    "Data da aula",
-                    format="DD/MM/YYYY",
-                ),
-                "data_atualizacao": st.column_config.DatetimeColumn(
-                    "Data de atualização",
-                    format="DD/MM/YYYY",
-                ),
-                "valor_total": st.column_config.NumberColumn(
-                    "Valor total",
-                    format="R$ %.2f",
-                ),
-            },
-        )
-    else:
-        st.info("Nenhum aluno encontrado neste período.")
-
 else:
-    st.error("Senha incorreta. Acesso negado.")
-    caixa_de_autenticacao()
+    st.info("Nenhum professor encontrado neste período.")
+
+resumo_aluno = (
+    merged_df.groupby(["aluno", "professor"])[["quantidade_de_horas", "valor_total"]]
+    .sum()
+    .reset_index()
+)
+
+resumo_aluno.sort_values(by="professor", inplace=True)
+
+st.subheader("Resumo por Aluno")
+
+st.dataframe(
+    resumo_aluno,
+    hide_index=True,
+    column_config={
+        "aluno": st.column_config.TextColumn("Aluno"),
+        "professor": st.column_config.TextColumn("Professor"),
+        "quantidade_de_horas": st.column_config.NumberColumn(
+            "Quantidade de horas",
+            format="%.2f",
+        ),
+        "valor_total": st.column_config.NumberColumn(
+            "Valor total",
+            format="R$ %.2f",
+        ),
+    },
+)
+
+st.subheader("Detalhe do Aluno")
+
+alunos_disponiveis = sorted(merged_df["aluno"].dropna().unique())
+
+if alunos_disponiveis:
+    aluno_selecionado = st.selectbox(
+        "Selecione um aluno:",
+        alunos_disponiveis,
+    )
+
+    detalhe_aluno = merged_df.loc[
+        merged_df["aluno"] == aluno_selecionado
+    ].copy()
+
+    st.dataframe(
+        detalhe_aluno,
+        hide_index=True,
+        column_config={
+            "data_da_aula": st.column_config.DatetimeColumn(
+                "Data da aula",
+                format="DD/MM/YYYY",
+            ),
+            "data_atualizacao": st.column_config.DatetimeColumn(
+                "Data de atualização",
+                format="DD/MM/YYYY",
+            ),
+            "valor_total": st.column_config.NumberColumn(
+                "Valor total",
+                format="R$ %.2f",
+            ),
+        },
+    )
+else:
+    st.info("Nenhum aluno encontrado neste período.")
