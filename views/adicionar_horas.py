@@ -34,9 +34,15 @@ def visualizar_horas_aluno(aluno: str, professor: str | None = None):
         st.info("Nenhum registro de horas encontrado.")
         return
 
-    horas_aluno = horas_df.loc[
-        horas_df["aluno"].astype(str) == str(aluno)
-    ].copy()
+    filtro_aluno = horas_df["aluno"].astype(str).str.strip() == str(aluno).strip()
+
+    if professor is not None:
+        filtro_aluno &= (
+            horas_df["professor"].astype(str).str.strip()
+            == str(professor).strip()
+        )
+
+    horas_aluno = horas_df.loc[filtro_aluno].copy()
 
     seletor_periodo = st.date_input(
         "Selecione o período:",
@@ -88,10 +94,15 @@ def visualizar_horas_aluno(aluno: str, professor: str | None = None):
 
     alunos_df = st.session_state["base_alunos"]
 
-    valor_encontrado = alunos_df.loc[
-        alunos_df["aluno"].astype(str) == str(aluno),
-        "hora_aula",
-    ]
+    filtro_valor = alunos_df["aluno"].astype(str).str.strip() == str(aluno).strip()
+
+    if professor is not None:
+        filtro_valor &= (
+            alunos_df["professor"].astype(str).str.strip()
+            == str(professor).strip()
+        )
+
+    valor_encontrado = alunos_df.loc[filtro_valor, "hora_aula"]
 
     if valor_encontrado.empty:
         st.error(
@@ -100,7 +111,7 @@ def visualizar_horas_aluno(aluno: str, professor: str | None = None):
         return
 
     valor_aluno = pd.to_numeric(
-        valor_encontrado.iloc[0],
+        valor_encontrado.iloc[-1],
         errors="coerce",
     )
 

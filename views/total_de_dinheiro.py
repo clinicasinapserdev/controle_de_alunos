@@ -121,6 +121,19 @@ if "base_de_horas" not in st.session_state:
 alunos_df = st.session_state["base_alunos"].copy()
 horas_df = st.session_state["base_de_horas"].copy()
 
+alunos_df["aluno"] = alunos_df["aluno"].astype(str).str.strip()
+alunos_df["professor"] = alunos_df["professor"].astype(str).str.strip()
+
+# Remove linhas duplicadas de aluno/professor (ex.: cadastro repetido
+# por engano na planilha), mantendo a mais recente.
+alunos_df = alunos_df.drop_duplicates(
+    subset=["aluno", "professor"],
+    keep="last",
+)
+
+horas_df["aluno"] = horas_df["aluno"].astype(str).str.strip()
+horas_df["professor"] = horas_df["professor"].astype(str).str.strip()
+
 st.title("Visualizar total")
 
 seletor_periodo = st.date_input(
@@ -143,9 +156,8 @@ if "data_atualizacao" in horas_df.columns:
 
 merged_df = horas_df.merge(
     alunos_df,
-    on="aluno",
+    on=["aluno", "professor"],
     how="left",
-    suffixes=("", "_aluno"),
 )
 
 filtro_periodo = (
