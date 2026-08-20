@@ -16,6 +16,35 @@ def limpar_nome_arquivo(texto: str) -> str:
     return texto
 
 
+def obter_column_config() -> dict:
+    """Configuração de exibição compartilhada por todas as tabelas da página."""
+    return {
+        "aluno": st.column_config.TextColumn("Aluno"),
+        "professor": st.column_config.TextColumn("Professor"),
+        "data_da_aula": st.column_config.DatetimeColumn(
+            "Data da Aula",
+            format="DD/MM/YYYY",
+        ),
+        "data_atualizacao": st.column_config.DatetimeColumn(
+            "Data de Atualização",
+            format="DD/MM/YYYY",
+        ),
+        "quantidade_de_horas": st.column_config.NumberColumn(
+            "Quantidade de Horas",
+            format="%.2f",
+        ),
+        "hora_aula": st.column_config.NumberColumn(
+            "Hora Aula",
+            format="R$ %.2f",
+        ),
+        "valor_total": st.column_config.NumberColumn(
+            "Valor Total",
+            format="R$ %.2f",
+        ),
+        "observacoes": st.column_config.TextColumn("Observações"),
+    }
+
+
 def normalizar_periodo(seletor_periodo):
     if isinstance(seletor_periodo, (tuple, list)):
         if len(seletor_periodo) == 2:
@@ -134,7 +163,7 @@ alunos_df = alunos_df.drop_duplicates(
 horas_df["aluno"] = horas_df["aluno"].astype(str).str.strip()
 horas_df["professor"] = horas_df["professor"].astype(str).str.strip()
 
-st.title("Visualizar total")
+st.title("Controle Financeiro")
 
 seletor_periodo = st.date_input(
     "Selecione o período:",
@@ -201,17 +230,7 @@ st.subheader("Resumo por Professor")
 st.dataframe(
     resumo_professor,
     hide_index=True,
-    column_config={
-        "professor": st.column_config.TextColumn("Professor"),
-        "quantidade_de_horas": st.column_config.NumberColumn(
-            "Quantidade de horas",
-            format="%.2f",
-        ),
-        "valor_total": st.column_config.NumberColumn(
-            "Valor total",
-            format="R$ %.2f",
-        ),
-    },
+    column_config=obter_column_config(),
 )
 
 professores_disponiveis = sorted(
@@ -263,18 +282,7 @@ st.subheader("Resumo por Aluno")
 st.dataframe(
     resumo_aluno,
     hide_index=True,
-    column_config={
-        "aluno": st.column_config.TextColumn("Aluno"),
-        "professor": st.column_config.TextColumn("Professor"),
-        "quantidade_de_horas": st.column_config.NumberColumn(
-            "Quantidade de horas",
-            format="%.2f",
-        ),
-        "valor_total": st.column_config.NumberColumn(
-            "Valor total",
-            format="R$ %.2f",
-        ),
-    },
+    column_config=obter_column_config(),
 )
 
 st.subheader("Detalhe do Aluno")
@@ -294,20 +302,7 @@ if alunos_disponiveis:
     st.dataframe(
         detalhe_aluno,
         hide_index=True,
-        column_config={
-            "data_da_aula": st.column_config.DatetimeColumn(
-                "Data da aula",
-                format="DD/MM/YYYY",
-            ),
-            "data_atualizacao": st.column_config.DatetimeColumn(
-                "Data de atualização",
-                format="DD/MM/YYYY",
-            ),
-            "valor_total": st.column_config.NumberColumn(
-                "Valor total",
-                format="R$ %.2f",
-            ),
-        },
+        column_config=obter_column_config(),
     )
 else:
     st.info("Nenhum aluno encontrado neste período.")

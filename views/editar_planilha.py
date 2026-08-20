@@ -11,7 +11,19 @@ st.title("⚠️⚠️Modificar horas registradas⚠️⚠️")
 
 base_horas = st.data_editor(
     horas_df,
-    num_rows="dynamic"
+    num_rows="dynamic",
+    column_config={
+        "data_da_aula": st.column_config.TextColumn("Data da Aula"),
+        "quantidade_de_horas": st.column_config.TextColumn(
+            "Quantidade de Horas"
+        ),
+        "aluno": st.column_config.TextColumn("Aluno"),
+        "professor": st.column_config.TextColumn("Professor"),
+        "data_atualizacao": st.column_config.TextColumn(
+            "Data de Atualização"
+        ),
+        "observacoes": st.column_config.TextColumn("Observações"),
+    },
 )
 
 atualizar_botao = st.button("⚠️Atualizar base⚠️")

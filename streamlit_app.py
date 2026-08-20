@@ -24,7 +24,7 @@ professor_page = st.Page(
 
 total_page = st.Page(
     "views/total_de_dinheiro.py",
-    title="Total de Dinheiro",
+    title="Controle Financeiro",
     icon=":material/money:",
 )
 
@@ -46,7 +46,7 @@ pg = st.navigation(
 )
 
 # --- SHARED ON ALL PAGES ---
-st.sidebar.caption("Version 1.1.4")
+st.sidebar.caption("Version 1.2.0")
 
 
 # --- RUN NAVIGATION ---
