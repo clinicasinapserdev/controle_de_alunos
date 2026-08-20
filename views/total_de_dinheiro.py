@@ -141,14 +141,8 @@ def gerar_zip_tabelas_alunos(
     return zip_buffer.getvalue()
 
 
-if "base_alunos" not in st.session_state:
-    st.session_state["base_alunos"] = get_sheet_data("base_alunos")
-
-if "base_de_horas" not in st.session_state:
-    st.session_state["base_de_horas"] = get_sheet_data("base_de_horas")
-
-alunos_df = st.session_state["base_alunos"].copy()
-horas_df = st.session_state["base_de_horas"].copy()
+alunos_df = get_sheet_data("base_alunos")
+horas_df = get_sheet_data("base_de_horas")
 
 alunos_df["aluno"] = alunos_df["aluno"].astype(str).str.strip()
 alunos_df["professor"] = alunos_df["professor"].astype(str).str.strip()

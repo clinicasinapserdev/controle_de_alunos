@@ -12,17 +12,6 @@ from auxiliar.download_as_image import df_to_image_bytes
 
 
 # ============================================================
-# CARREGAMENTO DA BASE DE ALUNOS
-# ============================================================
-
-if "base_alunos" not in st.session_state:
-    st.session_state["base_alunos"] = get_sheet_data("base_alunos")
-
-if "base_professores" not in st.session_state:
-    st.session_state["base_professores"] = get_professores_list()
-
-
-# ============================================================
 # DIALOG PARA VISUALIZAR AS HORAS
 # ============================================================
 
@@ -92,7 +81,7 @@ def visualizar_horas_aluno(aluno: str, professor: str | None = None):
         horas_aluno["quantidade_de_horas"].sum()
     )
 
-    alunos_df = st.session_state["base_alunos"]
+    alunos_df = get_sheet_data("base_alunos")
 
     filtro_valor = alunos_df["aluno"].astype(str).str.strip() == str(aluno).strip()
 
@@ -225,27 +214,7 @@ def visualizar_horas_aluno(aluno: str, professor: str | None = None):
 
 st.title("Adicionar Horas")
 
-# Permite forçar a atualização caso a planilha tenha sido
-# alterada diretamente no Google Sheets.
-if st.button(
-    "Atualizar listas de alunos e professores",
-    type="secondary",
-):
-    # Se get_sheet_data usa @st.cache_data, limpa o resultado
-    # armazenado antes de consultar novamente.
-    if hasattr(get_sheet_data, "clear"):
-        get_sheet_data.clear()
-
-    st.session_state["base_alunos"] = get_sheet_data(
-        "base_alunos"
-    )
-
-    st.session_state["base_professores"] = get_professores_list()
-
-    st.success("Listas de alunos e professores atualizadas!")
-    st.rerun()
-
-alunos_df = st.session_state["base_alunos"]
+alunos_df = get_sheet_data("base_alunos")
 
 if alunos_df.empty:
     st.warning(
@@ -272,7 +241,7 @@ if colunas_ausentes:
 
 col1, col2 = st.columns(2)
 
-professores = st.session_state["base_professores"]
+professores = get_professores_list()
 
 if not professores:
     st.warning(
@@ -359,11 +328,6 @@ if botao_adicionar_horas:
             "base_de_horas",
             [list(nova_linha.values())],
         )
-
-        # Evita que a janela de visualização continue mostrando
-        # uma versão em cache anterior ao novo registro.
-        if hasattr(get_sheet_data, "clear"):
-            get_sheet_data.clear()
 
         st.success(
             f"Foram adicionadas {quantidade_horas:g} horas "

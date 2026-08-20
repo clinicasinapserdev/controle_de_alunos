@@ -2,10 +2,7 @@ import streamlit as st
 import pandas as pd
 from auxiliar.google_sheets import get_sheet_data,set_sheet_data
 
-if "base_de_horas" not in st.session_state:
-    st.session_state["base_de_horas"] = get_sheet_data("base_de_horas")
-
-horas_df = st.session_state["base_de_horas"]
+horas_df = get_sheet_data("base_de_horas")
 
 st.title("⚠️⚠️Modificar horas registradas⚠️⚠️")
 

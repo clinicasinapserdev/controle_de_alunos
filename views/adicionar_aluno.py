@@ -5,23 +5,13 @@ from auxiliar.google_sheets import get_sheet_data, set_sheet_data, get_professor
 
 
 # ============================================================
-# CARREGAMENTO DA BASE
-# ============================================================
-
-if "base_alunos" not in st.session_state:
-    st.session_state["base_alunos"] = get_sheet_data("base_alunos")
-
-if "base_professores" not in st.session_state:
-    st.session_state["base_professores"] = get_professores_list()
-
-
-# ============================================================
 # PÁGINA
 # ============================================================
 
 st.title("Adicionar Alunos")
 
-alunos_df = st.session_state["base_alunos"]
+alunos_df = get_sheet_data("base_alunos")
+professores = get_professores_list()
 
 base_alunos_editada = st.data_editor(
     alunos_df,
@@ -37,7 +27,7 @@ base_alunos_editada = st.data_editor(
         ),
         "professor": st.column_config.SelectboxColumn(
             "Professor",
-            options=st.session_state["base_professores"],
+            options=professores,
             required=True,
         ),
     },
@@ -54,9 +44,6 @@ if atualizar_botao:
         "base_alunos",
         base_alunos_editada,
     )
-
-    # Atualiza a cópia armazenada na sessão.
-    st.session_state["base_alunos"] = base_alunos_editada.copy()
 
     st.success("Base de alunos atualizada com sucesso!")
     st.balloons()
