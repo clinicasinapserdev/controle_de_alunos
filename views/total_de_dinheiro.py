@@ -20,7 +20,7 @@ def obter_column_config() -> dict:
     """Configuração de exibição compartilhada por todas as tabelas da página."""
     return {
         "aluno": st.column_config.TextColumn("Aluno"),
-        "professor": st.column_config.TextColumn("Professor"),
+        "professor": st.column_config.TextColumn("Profissional / Categoria"),
         "data_da_aula": st.column_config.DatetimeColumn(
             "Data da Aula",
             format="DD/MM/YYYY",
@@ -111,17 +111,17 @@ def gerar_zip_tabelas_alunos(
                 errors="coerce",
             ).dt.strftime("%d/%m/%Y")
 
-            titulo_da_tabela = (
+            subtitulo_da_tabela = (
                 f"Aluno: {aluno}\n"
                 f"Período: {data_inicio.strftime('%d/%m/%Y')} a {data_fim.strftime('%d/%m/%Y')}\n"
-                f"Total de horas: {total_horas} horas\n"
-                f"Valor total: R$ {valor_total:.2f}\n"
-                f"Chave Pix: 368.509.398-31 (Patricia Miyuki)"
+                f"Total de horas: {total_horas:g} horas\n"
+                f"Valor total: R$ {valor_total:.2f}"
             )
 
             img_bytes = df_to_image_bytes(
                 relatorio_detalhado_df,
-                title=titulo_da_tabela,
+                titulo=professor,
+                subtitulo=subtitulo_da_tabela,
                 logo_path=logo_path,
             )
 
@@ -158,6 +158,7 @@ horas_df["aluno"] = horas_df["aluno"].astype(str).str.strip()
 horas_df["professor"] = horas_df["professor"].astype(str).str.strip()
 
 st.title("Controle Financeiro")
+st.caption("Resumo de horas e valores por profissional/categoria e por aluno.")
 
 seletor_periodo = st.date_input(
     "Selecione o período:",
@@ -213,13 +214,31 @@ resumo_professor = (
 total_geral_horas = resumo_professor["quantidade_de_horas"].sum()
 total_geral_valor = resumo_professor["valor_total"].sum()
 
+col_metric_horas, col_metric_valor, col_metric_profissionais = st.columns(3)
+
+col_metric_horas.metric(
+    "Total de horas no período",
+    f"{total_geral_horas:g}",
+)
+
+col_metric_valor.metric(
+    "Total a receber no período",
+    f"R$ {total_geral_valor:,.2f}".replace(",", "_").replace(".", ",").replace("_", "."),
+)
+
+col_metric_profissionais.metric(
+    "Profissionais / categorias ativos",
+    f"{resumo_professor['professor'].nunique()}",
+)
+
 resumo_professor.loc[len(resumo_professor)] = [
     "Total Geral",
     total_geral_horas,
     total_geral_valor,
 ]
 
-st.subheader("Resumo por Professor")
+st.divider()
+st.subheader("📊 Resumo por Profissional / Categoria")
 
 st.dataframe(
     resumo_professor,
@@ -227,13 +246,22 @@ st.dataframe(
     column_config=obter_column_config(),
 )
 
+st.divider()
+st.subheader("🧾 Gerar cobrança")
+st.caption(
+    "Gera uma imagem por aluno com o detalhamento de horas do período, "
+    "agrupadas em um arquivo .zip por profissional/categoria."
+)
+
 professores_disponiveis = sorted(
     merged_df["professor"].dropna().unique()
 )
 
 if professores_disponiveis:
-    professor_selecionado_download = st.selectbox(
-        "Selecione o professor para baixar as tabelas dos alunos:",
+    col_selecao, col_download = st.columns([3, 2])
+
+    professor_selecionado_download = col_selecao.selectbox(
+        "Selecione o profissional/categoria para baixar as tabelas dos alunos:",
         professores_disponiveis,
         key="professor_download_tabelas",
     )
@@ -251,7 +279,9 @@ if professores_disponiveis:
 
     nome_professor = limpar_nome_arquivo(professor_selecionado_download)
 
-    st.download_button(
+    col_download.write("")
+    col_download.write("")
+    col_download.download_button(
         label="Baixar todas as tabelas",
         data=zip_bytes,
         file_name=(
@@ -259,9 +289,10 @@ if professores_disponiveis:
             f"{data_inicio.strftime('%Y%m%d')}_{data_fim.strftime('%Y%m%d')}.zip"
         ),
         mime="application/zip",
+        use_container_width=True,
     )
 else:
-    st.info("Nenhum professor encontrado neste período.")
+    st.info("Nenhum profissional/categoria encontrado neste período.")
 
 resumo_aluno = (
     merged_df.groupby(["aluno", "professor"])[["quantidade_de_horas", "valor_total"]]
@@ -271,7 +302,8 @@ resumo_aluno = (
 
 resumo_aluno.sort_values(by="professor", inplace=True)
 
-st.subheader("Resumo por Aluno")
+st.divider()
+st.subheader("🎓 Resumo por Aluno")
 
 st.dataframe(
     resumo_aluno,
@@ -279,7 +311,8 @@ st.dataframe(
     column_config=obter_column_config(),
 )
 
-st.subheader("Detalhe do Aluno")
+st.divider()
+st.subheader("🔍 Detalhe do Aluno")
 
 alunos_disponiveis = sorted(merged_df["aluno"].dropna().unique())
 

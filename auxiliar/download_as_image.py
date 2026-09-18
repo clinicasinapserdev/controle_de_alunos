@@ -5,24 +5,50 @@ from PIL import Image
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 
 
-def df_to_image_bytes(df: pd.DataFrame, title: str = None, logo_path: str = None) -> BytesIO:
-    """Converte um DataFrame em PNG com linhas curtas,
-    título acima da tabela, sem timestamp e com borda.
+def df_to_image_bytes(
+    df: pd.DataFrame,
+    titulo: str = None,
+    subtitulo: str = None,
+    logo_path: str = None,
+) -> BytesIO:
+    """Converte um DataFrame em PNG com cabeçalho de cobrança acima da tabela.
+
+    `titulo` é o destaque principal (ex.: professor ou categoria de
+    atendimento) e `subtitulo` são as linhas de detalhe (aluno, período,
+    horas, valor). A altura da imagem se ajusta à quantidade de linhas
+    da tabela, em vez de reservar sempre um espaço em branco fixo.
     """
     n_rows, n_cols = df.shape
 
     fig_width = max(10, n_cols * 2.5)
-    fig_height = max(7.5, (n_rows * 0.2) + 10.0)
+
+    # --- Alturas em polegadas de cada bloco, para a imagem crescer/encolher
+    # junto com o conteúdo em vez de deixar espaço em branco sobrando ---
+    margem_topo_in = 0.35
+    margem_base_in = 0.35
+
+    cabecalho_in = 0.0
+    if titulo:
+        cabecalho_in += 0.5
+    if subtitulo:
+        linhas_subtitulo = subtitulo.count("\n") + 1
+        cabecalho_in += 0.08 + linhas_subtitulo * 0.28
+    if titulo or subtitulo:
+        cabecalho_in += 0.25  # respiro + linha divisória antes da tabela
+
+    altura_linha_in = 0.4
+    tabela_in = altura_linha_in * (n_rows + 1)  # +1 para a linha de cabeçalho
+
+    logo_in = 2.3 if logo_path else 0.0
+
+    fig_height = margem_topo_in + cabecalho_in + tabela_in + logo_in + margem_base_in
 
     fig, ax = plt.subplots(figsize=(fig_width, fig_height))
     ax.axis("off")
 
-    # --- TABELA (posicionada na parte superior da figura) ---
-    # Logo: 1200px tall * zoom 0.22 = 264px rendered.
-    # At 200dpi, fig_height=7.5" → 1500px. Logo occupies ~264/1500 = 0.176 of fig height.
-    # We give the bottom 30% to the logo with some padding, table sits above that.
-    table_bottom = 0.55
-    table_height = 0.26
+    table_bottom = (margem_base_in + logo_in) / fig_height
+    table_height = tabela_in / fig_height
+    topo_tabela = table_bottom + table_height
 
     table = ax.table(
         cellText=df.values,
@@ -33,9 +59,6 @@ def df_to_image_bytes(df: pd.DataFrame, title: str = None, logo_path: str = None
 
     table.auto_set_font_size(False)
     table.set_fontsize(12)
-
-    # Altura das linhas muito reduzida
-    table.scale(1.2, 0.07)
 
     # Borda preta ao redor das células
     for cell in table.get_celld().values():
@@ -54,20 +77,38 @@ def df_to_image_bytes(df: pd.DataFrame, title: str = None, logo_path: str = None
         else:
             cell.set_facecolor(row_colors[(row - 1) % 2])
 
-    # --- TÍTULO acima da tabela ---
-    if title:
-        # Posicionamos o título logo acima do topo da tabela
-        title_y = table_bottom + table_height + 0.02
-        fig.text(0.5, title_y, title, ha='center', va='bottom',
-                 fontsize=22, fontweight='bold', color='#333333')
+    # --- CABEÇALHO DE COBRANÇA acima da tabela ---
+    titulo_y = 1 - (margem_topo_in / fig_height)
+
+    if titulo:
+        fig.text(
+            0.5, titulo_y, titulo,
+            ha='center', va='top',
+            fontsize=23, fontweight='bold', color=header_color,
+        )
+
+    if subtitulo:
+        subtitulo_y = titulo_y - (0.55 / fig_height if titulo else 0)
+        fig.text(
+            0.5, subtitulo_y, subtitulo,
+            ha='center', va='top',
+            fontsize=13, color='#555555', linespacing=1.7,
+        )
+
+    if titulo or subtitulo:
+        # Linha divisória fina separando o cabeçalho da tabela
+        linha_divisoria = plt.Line2D(
+            [0.05, 0.95], [topo_tabela + (0.1 / fig_height)] * 2,
+            transform=fig.transFigure, color='#d9d9d9', linewidth=1,
+        )
+        fig.add_artist(linha_divisoria)
 
     # --- LOGO SECTION ---
     if logo_path:
         try:
             logo = Image.open(logo_path)
             imagebox = OffsetImage(logo, zoom=0.22)
-            # Logo centered in space below table, with a small gap (table_bottom - 0.05) / 2
-            logo_y = (table_bottom - 0.06) / 2
+            logo_y = (margem_base_in + logo_in / 2) / fig_height
             ab = AnnotationBbox(
                 imagebox, (0.5, logo_y),
                 xycoords='figure fraction',
@@ -78,11 +119,10 @@ def df_to_image_bytes(df: pd.DataFrame, title: str = None, logo_path: str = None
         except Exception as e:
             print(f"Logo error: {e}")
 
-    plt.subplots_adjust(top=0.97, bottom=0.02, left=0.03, right=0.97)
+    plt.subplots_adjust(top=0.99, bottom=0.01, left=0.03, right=0.97)
 
     buf = BytesIO()
     plt.savefig(buf, format="png", dpi=200, facecolor="white")
     plt.close(fig)
     buf.seek(0)
     return buf
-

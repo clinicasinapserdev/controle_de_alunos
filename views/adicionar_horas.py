@@ -169,12 +169,12 @@ def visualizar_horas_aluno(aluno: str, professor: str | None = None):
         )
 
     else:
-        titulo_da_tabela = (
+        subtitulo_da_tabela = (
             f"Aluno: {aluno}\n"
             f"Período: {data_inicio.strftime('%d/%m/%Y')} "
             f"a {data_fim.strftime('%d/%m/%Y')}\n"
             f"Total de horas: {total_horas:g} horas\n"
-            f"Valor total: R$ {valor_total:.2f}\n"
+            f"Valor total: R$ {valor_total:.2f}"
         )
 
         st.dataframe(
@@ -185,7 +185,8 @@ def visualizar_horas_aluno(aluno: str, professor: str | None = None):
 
         img_bytes = df_to_image_bytes(
             relatorio_detalhado_df,
-            title=titulo_da_tabela,
+            titulo=professor,
+            subtitulo=subtitulo_da_tabela,
             logo_path=None,
         )
 
